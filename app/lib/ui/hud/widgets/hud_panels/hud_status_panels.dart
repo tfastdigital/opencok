@@ -535,35 +535,24 @@ Future<void> showKingdomsAndCastlesSheet(
   KingdomController controller,
 ) => showMedievalSheet<void>(
   context,
-  title: 'Kingdoms & Castles',
-  subtitle: 'Switch or Found Kingdoms · Build World Castles',
+  title: 'Kingdoms',
+  subtitle: 'Enter other Kingdoms to view & start Kingdom Wars',
   iconAsset: 'assets/ui/hud/navigation/world_map_icon.png',
-  bodyBuilder: (context) => ListenableBuilder(
+  bodyBuilder: (sheetContext) => ListenableBuilder(
     listenable: controller,
     builder: (context, _) => SingleChildScrollView(
       padding: const EdgeInsets.all(14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Kingdoms',
-                style: TextStyle(
-                  color: MedievalPanelColors.goldBright,
-                  fontFamily: 'serif',
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              medievalActionButton(
-                compact: true,
-                label: 'Found Kingdom',
-                icon: Icons.public,
-                onPressed: () => _showCreateKingdomDialog(context, controller),
-              ),
-            ],
+          const Text(
+            'World Kingdoms',
+            style: TextStyle(
+              color: MedievalPanelColors.goldBright,
+              fontFamily: 'serif',
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+            ),
           ),
           const SizedBox(height: 8),
           for (final kingdom in controller.kingdoms)
@@ -588,7 +577,7 @@ Future<void> showKingdomsAndCastlesSheet(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          '#${kingdom.id} · ${kingdom.name}',
+                          '#${kingdom.id} · ${kingdom.name}${kingdom.id == controller.homeKingdomId ? " (Home)" : ""}',
                           style: const TextStyle(
                             color: MedievalPanelColors.goldBright,
                             fontFamily: 'serif',
@@ -605,80 +594,79 @@ Future<void> showKingdomsAndCastlesSheet(
                       ],
                     ),
                   ),
+                  if (kingdom.id != controller.homeKingdomId) ...[
+                    medievalActionButton(
+                      compact: true,
+                      label: 'War',
+                      onPressed: () {
+                        controller.startKingdomWar(kingdom.id);
+                        Navigator.of(sheetContext).pop();
+                      },
+                    ),
+                    const SizedBox(width: 6),
+                  ],
                   medievalActionButton(
                     compact: true,
                     label: kingdom.id == controller.activeKingdomId
-                        ? 'Active'
+                        ? 'Viewing'
                         : 'Enter',
                     onPressed: kingdom.id == controller.activeKingdomId
                         ? null
-                        : () => controller.switchKingdom(kingdom.id),
+                        : () {
+                            controller.switchKingdom(kingdom.id);
+                            Navigator.of(sheetContext).pop();
+                          },
                   ),
                 ],
               ),
             ),
           const SizedBox(height: 10),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Your Castles',
-                style: TextStyle(
-                  color: MedievalPanelColors.goldBright,
-                  fontFamily: 'serif',
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              medievalActionButton(
-                compact: true,
-                label: 'Build Castle (50K W/F)',
-                icon: Icons.castle_outlined,
-                onPressed: controller.wood >= 50000 && controller.food >= 50000
-                    ? () => _showBuildCastleDialog(context, controller)
-                    : null,
-              ),
-            ],
+          const Text(
+            'Your Citadel',
+            style: TextStyle(
+              color: MedievalPanelColors.goldBright,
+              fontFamily: 'serif',
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+            ),
           ),
           const SizedBox(height: 8),
-          for (final castle in controller.playerCastles)
-            Container(
-              margin: const EdgeInsets.only(bottom: 8),
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: MedievalPanelColors.card,
-                border: Border.all(color: const Color(0xff4c555e)),
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        '${castle.name} · Lv.${castle.level}',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      Text(
-                        'Kingdom #${castle.kingdomId} · (${castle.x}, ${castle.y})',
-                        style: const TextStyle(
-                          color: MedievalPanelColors.goldText,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const Icon(
-                    Icons.location_city,
-                    color: MedievalPanelColors.goldBorder,
-                  ),
-                ],
-              ),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: MedievalPanelColors.card,
+              border: Border.all(color: const Color(0xff4c555e)),
+              borderRadius: BorderRadius.circular(6),
             ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '${controller.playerName} · Lv.${controller.buildingLevel('buildingCastle')}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    Text(
+                      'Home Kingdom #${controller.homeKingdomId} · (${controller.playerCastles.first.x}, ${controller.playerCastles.first.y})',
+                      style: const TextStyle(
+                        color: MedievalPanelColors.goldText,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+                const Icon(
+                  Icons.location_city,
+                  color: MedievalPanelColors.goldBorder,
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     ),

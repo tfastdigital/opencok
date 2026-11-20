@@ -170,8 +170,8 @@ class _WorldMapViewportState extends State<WorldMapViewport> {
   void _onMapTap(Offset scenePoint) {
     final ctrl = widget.controller;
     if (ctrl == null) return;
-    // Check remote players' castles first
-    for (final remote in ctrl.remotePlayers) {
+    // Check visible castles (live players in home kingdom, or foreign lords when viewing another kingdom)
+    for (final remote in ctrl.visibleKingdomCastles) {
       final pos = WorldMapScene.positionForCell(remote.x, remote.y);
       if ((scenePoint - pos).distance <= 68) {
         unawaited(_showRemotePlayerSheet(ctrl, remote));
@@ -225,17 +225,27 @@ class _WorldMapViewportState extends State<WorldMapViewport> {
             icon: Icons.visibility_outlined,
             onPressed: () {
               Navigator.of(sheetContext).pop();
-              controller.scoutRemotePlayer(remote);
+              if (controller.isViewingForeignKingdom) {
+                controller.scoutForeignCastle(remote);
+              } else {
+                controller.scoutRemotePlayer(remote);
+              }
             },
           ),
           const SizedBox(height: 8),
           medievalActionButton(
-            label: 'Attack ${remote.playerName} (-10 Energy)',
+            label: controller.isViewingForeignKingdom
+                ? 'Start War vs ${remote.playerName} (-10 Energy)'
+                : 'Attack ${remote.playerName} (-10 Energy)',
             icon: Icons.gavel_outlined,
             onPressed: controller.energyCurrent >= 10
                 ? () {
                     Navigator.of(sheetContext).pop();
-                    controller.attackRemotePlayer(remote);
+                    if (controller.isViewingForeignKingdom) {
+                      controller.attackForeignCastle(remote);
+                    } else {
+                      controller.attackRemotePlayer(remote);
+                    }
                   }
                 : null,
           ),
@@ -482,8 +492,8 @@ class _WorldMapViewportState extends State<WorldMapViewport> {
               child: AnimatedBuilder(
                 animation: Listenable.merge([_camera, controller]),
                 builder: (context, _) {
-                  if (controller.activeMarches.isEmpty &&
-                      controller.remotePlayers.isEmpty) {
+                  final castles = controller.visibleKingdomCastles;
+                  if (controller.activeMarches.isEmpty && castles.isEmpty) {
                     return const SizedBox.shrink();
                   }
                   return IgnorePointer(
@@ -492,9 +502,13 @@ class _WorldMapViewportState extends State<WorldMapViewport> {
                       painter: _MarchOverlayPainter(
                         camera: _camera,
                         marches: controller.activeMarches,
-                        remotePlayers: controller.remotePlayers,
-                        selfName: controller.playerName,
-                        selfCoords: controller.playerCastles.isNotEmpty
+                        remotePlayers: castles,
+                        selfName: controller.isViewingForeignKingdom
+                            ? ''
+                            : controller.playerName,
+                        selfCoords:
+                            !controller.isViewingForeignKingdom &&
+                                controller.playerCastles.isNotEmpty
                             ? (
                                 controller.playerCastles.first.x,
                                 controller.playerCastles.first.y,
@@ -505,6 +519,93 @@ class _WorldMapViewportState extends State<WorldMapViewport> {
                   );
                 },
               ),
+            ),
+          if (widget.controller case final controller?)
+            ListenableBuilder(
+              listenable: controller,
+              builder: (context, _) {
+                if (!controller.isViewingForeignKingdom) {
+                  return const SizedBox.shrink();
+                }
+                return Positioned(
+                  left: 12,
+                  right: 12,
+                  top: 84,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xe62b1414),
+                      border: Border.all(color: const Color(0xffa68b53)),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            'Viewing K#${controller.activeKingdomId} · ${controller.activeKingdomName}',
+                            style: const TextStyle(
+                              color: Color(0xffffe7ae),
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        GestureDetector(
+                          onTap: () => controller.startKingdomWar(
+                            controller.activeKingdomId,
+                          ),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(0xff8c2d23),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: const Text(
+                              'Start War',
+                              style: TextStyle(
+                                color: Color(0xffffe7ae),
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        GestureDetector(
+                          onTap: () =>
+                              controller.switchKingdom(controller.homeKingdomId),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(0xff31424f),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              'Home #${controller.homeKingdomId}',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
             ),
           if (widget.controller case final controller?)
             ListenableBuilder(

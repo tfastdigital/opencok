@@ -241,7 +241,7 @@ class _HudPreviewScreenState extends State<HudPreviewScreen> {
                               ),
                             ),
                             icon: const Icon(Icons.public, size: 17),
-                            label: Text('K#${_controller.activeKingdomId} · Castles'),
+                            label: Text('K#${_controller.activeKingdomId} · Kingdoms'),
                           ),
                         ],
                       ),

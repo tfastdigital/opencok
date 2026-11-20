@@ -1196,8 +1196,206 @@ class KingdomController extends ChangeNotifier {
     notifyListeners();
   }
 
+  int get homeKingdomId => 1305;
+  bool get isViewingForeignKingdom => _activeKingdomId != homeKingdomId;
+  String get activeKingdomName => kingdoms
+      .firstWhere(
+        (k) => k.id == _activeKingdomId,
+        orElse: () => KingdomInfo(
+          id: _activeKingdomId,
+          name: 'Kingdom #$_activeKingdomId',
+          castlesCount: 1,
+        ),
+      )
+      .name;
+
+  static const Map<int, List<RemotePlayer>> _foreignKingdomCastles = {
+    1306: [
+      RemotePlayer(
+        playerId: 'npc_1306_king',
+        playerName: 'King_Thorne',
+        allianceTag: 'IRN',
+        allianceName: 'Iron Crown',
+        castleLevel: 30,
+        power: 342000000,
+        factionId: 'viking',
+        x: 571,
+        y: 563,
+        online: true,
+      ),
+      RemotePlayer(
+        playerId: 'npc_1306_duke',
+        playerName: 'Duke_Vane',
+        allianceTag: 'IRN',
+        allianceName: 'Iron Crown',
+        castleLevel: 28,
+        power: 215000000,
+        factionId: 'dragon_born',
+        x: 576,
+        y: 569,
+        online: true,
+      ),
+      RemotePlayer(
+        playerId: 'npc_1306_lady',
+        playerName: 'Lady_Brienne',
+        allianceTag: 'ASH',
+        allianceName: 'Ashen Guard',
+        castleLevel: 27,
+        power: 184000000,
+        factionId: 'yamato',
+        x: 568,
+        y: 568,
+        online: true,
+      ),
+    ],
+    1307: [
+      RemotePlayer(
+        playerId: 'npc_1307_king',
+        playerName: 'DragonLord_Kael',
+        allianceTag: 'DRG',
+        allianceName: 'Dragonspire',
+        castleLevel: 30,
+        power: 368000000,
+        factionId: 'huaxia',
+        x: 572,
+        y: 563,
+        online: true,
+      ),
+      RemotePlayer(
+        playerId: 'npc_1307_pyre',
+        playerName: 'PyreKnight',
+        allianceTag: 'DRG',
+        allianceName: 'Dragonspire',
+        castleLevel: 29,
+        power: 248000000,
+        factionId: 'arabia',
+        x: 577,
+        y: 568,
+        online: true,
+      ),
+    ],
+  };
+
+  List<RemotePlayer> get visibleKingdomCastles {
+    if (!isViewingForeignKingdom) return remotePlayers;
+    return _foreignKingdomCastles[_activeKingdomId] ??
+        const [
+          RemotePlayer(
+            playerId: 'npc_foreign_lord',
+            playerName: 'Foreign_Warden',
+            allianceTag: 'WAR',
+            allianceName: 'Foreign Guard',
+            castleLevel: 29,
+            power: 240000000,
+            factionId: 'viking',
+            x: 572,
+            y: 565,
+            online: true,
+          ),
+        ];
+  }
+
   void switchKingdom(int kingdomId) {
     _activeKingdomId = kingdomId;
+    notifyListeners();
+  }
+
+  void startKingdomWar(int targetKingdomId) {
+    if (targetKingdomId == homeKingdomId) return;
+    _activeKingdomId = targetKingdomId;
+    final home = playerCastles.first;
+    _kvkPoints += 1500;
+    launchMarch(
+      kind: 'attack',
+      label: 'KvK War: K#$targetKingdomId',
+      fromX: home.x,
+      fromY: home.y,
+      toX: 574,
+      toY: 566,
+      duration: const Duration(seconds: 5),
+      onComplete: () {
+        _kvkPoints += 2500;
+        _wood += 40000;
+        _food += 40000;
+        _gold += 500;
+        _power += 20000;
+        mails.insert(
+          0,
+          MailItem(
+            id: 'kw_${DateTime.now().millisecondsSinceEpoch}',
+            category: 'Reports',
+            sender: 'War Herald',
+            subject: 'Kingdom War Strike on #$targetKingdomId!',
+            body:
+                'Your expedition struck Kingdom #$targetKingdomId ($activeKingdomName), earning +2,500 KvK Points, 40K Wood, 40K Food, and 500 Gold.',
+            timestamp: 'Now',
+          ),
+        );
+      },
+    );
+    notifyListeners();
+  }
+
+  void scoutForeignCastle(RemotePlayer target) {
+    final home = playerCastles.first;
+    launchMarch(
+      kind: 'scout',
+      label: 'Scouting ${target.playerName}',
+      fromX: home.x,
+      fromY: home.y,
+      toX: target.x,
+      toY: target.y,
+      duration: const Duration(seconds: 4),
+      onComplete: () {
+        mails.insert(
+          0,
+          MailItem(
+            id: 'fscout_${DateTime.now().millisecondsSinceEpoch}',
+            category: 'Reports',
+            sender: 'Outrider Captain',
+            subject: 'Scout Report: ${target.playerName} (K#$_activeKingdomId)',
+            body:
+                '[${target.allianceTag}] ${target.playerName} · Castle Lv.${target.castleLevel} · Power ${target.power}. Ready for Kingdom War attack!',
+            timestamp: 'Now',
+          ),
+        );
+      },
+    );
+  }
+
+  void attackForeignCastle(RemotePlayer target) {
+    if (_energy < 0.085) return;
+    _energy = (_energy - 0.085).clamp(0.0, 1.0);
+    final home = playerCastles.first;
+    launchMarch(
+      kind: 'attack',
+      label: 'Attacking ${target.playerName}',
+      fromX: home.x,
+      fromY: home.y,
+      toX: target.x,
+      toY: target.y,
+      duration: const Duration(seconds: 5),
+      onComplete: () {
+        _kvkPoints += 1200;
+        _wood += 25000;
+        _food += 25000;
+        _iron += 10000;
+        _gold += 250;
+        _power += 15000;
+        mails.insert(
+          0,
+          MailItem(
+            id: 'fatk_${DateTime.now().millisecondsSinceEpoch}',
+            category: 'Reports',
+            sender: 'Garrison Marshal',
+            subject: 'Victory vs ${target.playerName} in K#$_activeKingdomId!',
+            body:
+                'Your army defeated [${target.allianceTag}] ${target.playerName} at (${target.x}, ${target.y}) and looted 25K Wood, 25K Food, 10K Iron, 250 Gold (+1,200 KvK Pts).',
+            timestamp: 'Now',
+          ),
+        );
+      },
+    );
     notifyListeners();
   }
 
