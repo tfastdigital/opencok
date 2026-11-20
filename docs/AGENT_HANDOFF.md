@@ -1,114 +1,95 @@
 # OpenCoK (`org.opencok.opencok`) Agent Handoff & Architecture Guide
 
-This document describes the current state of `org.opencok.opencok` on branch `main-opencok`, what was restored and completed, and how future AI agents should build, test, and extend the application.
+This document is the complete handoff for the next AI agent working on `org.opencok.opencok` (`https://github.com/tfastdigital/opencok.git`, branch `main-opencok`, latest commit `ef3ac01`).
 
 ---
 
-## 1. Current Baseline & Package Identity
+## 1. Repository, Branch & Environment
 
-- **Package / Application ID**: `org.opencok.opencok` (configured in `app/android/app/build.gradle.kts` and `app/android/app/src/main/kotlin/org/opencok/opencok/MainActivity.kt`).
-- **Branch**: `main-opencok` (branched from `02207ee` English localization on top of upstream `develop` `5aeffc5`).
-- **Removed Experimental Work**: `GuestKingdomScreen`, `live_kingdom_hud`, and `org.opencok.kingdoms` release overrides were removed so the app uses the authentic Clash of Kings interface (`GameHud`, `CastleScreen`, `WorldMap`, `PlayerProfileScreen`, `TrainingScreen`).
-- **USB Debugging / Security Gate**: `MainActivity.kt` exposes the `org.opencok/android_security` `MethodChannel` (`isDebuggerAttached` via `Debug.isDebuggerConnected() || Debug.waitingForDebugger()`), and `app/lib/security/device_security/device_security.dart` uses it instead of `isDevMode` so release builds can run on ADB-connected test phones with USB debugging enabled.
-
----
-
-## 2. City & Castle Architecture
-
-- **Castle Buildings Registry**: `app/lib/data/castle/castle_buildings/castle_buildings.dart`
-  - `CastleBuildings.military`: `siege_workshop.png`, `stable.png`, `archery_range.png`, `barracks.png` (loaded from `assets/castle/buildings/`).
-  - `CastleBuildings.city`:
-    - `buildingCastle` (`player_castle_level_5.png`) on the upper stone citadel terrace `(3880, 560, 520, 480)`
-    - `buildingWatchtower` (`castle_tower.png`) on the western circular stone pad `(3490, 910, 250, 260)`
-    - `buildingGoldMine` (`gold_mine.png`) on the lower-right stone pad `(4430, 1690, 260, 240)`
-    - `buildingSawmill` (`sawmill.png`) on the eastern plateau `(4760, 1390, 270, 240)`
-    - `buildingFarm` (`farm.png`) on the southern grass paths `(4050, 1850, 280, 240)`
-    - `buildingIronMine` (`iron_mine.png`) in the woodland clearing `(3480, 1680, 270, 240)`
-    - `buildingMithrilMine` (`mithril_mine.png`) on the upper-right bank `(4620, 860, 270, 240)`
-  - `CastleBuildings.all`: `[...city, ...military]`.
-  - `CastleBuildings.fullAssetPath(asset)` resolves paths across `assets/castle/buildings/`, `assets/world_map/buildings/castle/`, and `assets/world_map/buildings/resources/`.
-- **Loader & Painter**:
-  - `app/lib/data/castle/castle_environment_loader/castle_environment_loader.dart` loads all buildings in `CastleBuildings.all`.
-  - `app/lib/ui/castle/painters/castle_environment_painter/castle_environment_painter.dart` draws `CastleBuildings.all` (guarding `environment.images.containsKey(building.asset)` so unit tests with partial mock image maps continue to work).
-- **Building Selection**:
-  - `app/lib/ui/castle/widgets/castle_viewport/castle_viewport.dart` hit-tests `CastleBuildings.all.reversed`.
-  - Military buildings open `TrainingScreen` via `Train Troops`.
-  - City buildings (`Castle`, `Watchtower`, resource mines/farms) invoke `onCityBuildingAction` to open the corresponding `KingdomController` sheet (`Power Breakdown`, `Lord Status`, `Gold Treasury`, or `Resource Detail`).
-- **Localization Names**: `app/lib/l10n/game_names.dart` maps all `building*` keys for both `en` and `pt`.
+- **Repo**: `https://github.com/tfastdigital/opencok.git`
+- **Active Branch**: `main-opencok`
+- **Package / Application ID**: `org.opencok.opencok`
+- **Local Toolchain (Windows)**:
+  - `JAVA_HOME`: `C:\opencok-sdk\jdk-21.0.13+9`
+  - `ANDROID_HOME`: `C:\opencok-sdk\android`
+  - `Flutter`: `C:\opencok-sdk\flutter\bin\flutter.bat`
+  - `Build Tools`: `C:\opencok-sdk\android\build-tools\36.0.0` (`zipalign.exe`, `apksigner.bat`)
+  - `ADB`: `C:\opencok-sdk\android\platform-tools\adb.exe`
+  - `Node.js`: `C:\Program Files\nodejs\node.exe`
+- **Test Devices**:
+  - **Samsung Galaxy A13 (`SM_A135F`)**: USB serial `R58T33ZXRHH`, Wireless ADB `192.168.100.59:5555` (`tcpip 5555` enabled). **32-bit `armeabi-v7a`**, rooted (`1080x2408`).
+  - **Samsung Galaxy A16 (`SM_A165F`)**: USB serial `R58Y60LD6PM`, LAN IP `192.168.100.54` (`1080x2340`, 64-bit `arm64-v8a`).
+  - **Dev Host LAN IP**: `192.168.100.49` (Firewall rule `OpenCoK Multiplayer 9944` allows inbound TCP `9944`).
 
 ---
 
-## 3. Live State & Finished Preview Features
+## 2. What Is Implemented & Verified
 
-All former `"preview"` / `"coming soon"` snackbars in `HudPreviewScreen` and `PlayerProfileScreen` are backed by a live `ChangeNotifier` state controller:
+### A. Root Testing Flag & Dual-ABI Android Builds
+- `app/lib/security/device_security/device_security.dart`: `DeviceSecurity.developmentExemption` honors `--dart-define=ALLOW_ROOTED=true` so rooted test phones (`SM_A135F`) can launch the game while production builds without the flag keep root checks active.
+- `app/android/app/src/main/AndroidManifest.xml`: `android:usesCleartextTraffic="true"` enabled for LAN `ws://` multiplayer testing.
+- **CRITICAL**: Always build with `--target-platform android-arm,android-arm64` because `SM_A135F` is 32-bit `armeabi-v7a` and will crash with `Could not find 'libflutter.so'` if only `arm64-v8a` is packaged.
 
-- **Controller**: `app/lib/data/hud/kingdom_controller/kingdom_controller.dart` (`KingdomController`)
-  - Holds live `wood`, `food`, `iron`, `mithril`, `gold`, `power`, `level`, `experience`, `energy`, `vipLevel`, `vipPoints`, `playerName`, `dailyQuests`, `inventory`, `mails`, `chatMessages`, `achievements`, `skills`, `equippedGear`, and audio toggles.
-  - Exposes `hudData` (`HudData`) formatted identically to `referenceHudData` so `GameHud` and `PlayerProfileScreen` update immediately on any action.
-- **Shared Medieval Theme**: `app/lib/ui/shared/medieval_panel/medieval_panel.dart`
-  - `MedievalPanelColors`, `showMedievalSheet(...)`, and `medievalActionButton(...)`.
-- **HUD Panels**:
-  - `app/lib/ui/hud/widgets/hud_panels/hud_navigation_panels.dart`:
-    - `showDailyQuestsSheet`: Claimable quests that grant Gold/Resources/XP and decrement the `Daily` badge.
-    - `showInventorySheet`: Category-filtered bag (`All`, `Resources`, `Boosts`, `Chests`) with `Use` actions.
-    - `showMailSheet`: Inbox with `Mark All Read` and claimable gift attachments updating the `Mail` badge.
-    - `showAllianceSheet`: `[COK] Knights of OpenCoK` roster and `Help Allies` button.
-    - `showChatSheet`: `Kingdom` and `Alliance` channels, `Translate` toggle, and live message composer that updates the HUD bottom chat bar.
-  - `app/lib/ui/hud/widgets/hud_panels/hud_status_panels.dart`:
-    - `showVipSheet`, `showResourceDetailSheet`, `showPowerBreakdownSheet`, `showGoldTreasurySheet`, `showLordStatusSheet`.
-- **Profile Panels**:
-  - `app/lib/ui/profile/widgets/profile_modals/profile_modals.dart`:
-    - `showRenameLordDialog`, `showEquipmentSlotSheet` (8 equippable slots), `showRankingSheet`, `showAchievementsSheet`, `showLordInformationSheet`, `showSkillsSheet`, `showResetSkillsDialog`, `showSettingsSheet`.
-  - Wired in both `app/lib/ui/profile/screens/player_profile_screen/player_profile_screen.dart` and `app/lib/ui/profile/widgets/desktop_player_profile/desktop_player_profile.dart`.
-- **Training Troops, Upgrading & Building**:
-  - **Training Troops**: `TrainingScreen`, `TrainingPanel`, and `TrainingActions` accept an optional `KingdomController? controller`. When provided, **Train** deducts `woodCost`, `foodCost`, `ironCost`, `mithrilCost`, and **Train Now** deducts Gold; both call `trainTroopsWithCost(...)` to increment `troopsTrained` and `power`.
-  - **Upgrading Buildings**: `CastleBuildingMenu` shows each building's current level (`Lv.X`) and an **Upgrade** button (`upgradeBuilding(key)`) that deducts Wood/Food, increments the building level, and adds `+15,000 Power`.
-  - **City & Build Plots**: Tapping the Castle opens a **City & Build Plots** button (`showCityBuildingsSheet` in `hud_status_panels.dart`) where players can construct and upgrade `Academy`, `Embassy`, `Hospital`, `Forge`, `Warehouse`, and `Market` (`buildOrUpgradeCityConstructible`).
+### B. City Layout, Castle Progression & Building Systems
+- **Castle Visual Progression**: Castle scales/upgrades dynamically by level (`Lv.1`–`Lv.30+`) with level badges (`castle_environment_painter.dart`).
+- **Validated City Slots**: `CastleBuildings` (`app/lib/data/castle/castle_buildings/castle_buildings.dart`) and `CitySlotRegistry` (`app/lib/data/castle/city_slot_registry/city_slot_registry.dart`) align all 19 city/military buildings onto non-overlapping courtyard pads (`city_layout_validation_test.dart`).
+- **Building Interactions**:
+  - Military buildings open `TrainingScreen` (Barracks, Stable, Archery Range, Siege Workshop).
+  - Civic/Defense buildings open dedicated interactive sheets (`building_system_sheets.dart`, `hud_status_panels.dart`) for Academy, Embassy, Hall of War, Warehouse, Market, Forge, Hospital, Drill Grounds, Military Tent, Wishing Well, Tavern, Watchtower, Turret, and City Wall.
+  - Outer resource plots (`Farm`, `Sawmill`, `Iron Mine`, `Mithril Mine`) support building, upgrading, and resource collection.
+
+### C. World Map, Marching Armies, Throne War, KvK & Civilizations
+- **Marching Armies (`world_map_viewport.dart` / `kingdom_controller.dart`)**:
+  - `ActiveMarch` renders animated 3-soldier squads, directional chevrons, dashed glowing march lines, live countdown badges, and `Speed Up` buttons.
+- **Middle Throne & 16 Royal Offices**:
+  - Middle Throne Castle at `(574, 566)` (displayed as `(600, 600)` in lore) with Throne War capture, King crowning, **16 Royal Offices** (Grand Duke, Prime Minister, Archmage, Field Marshal, 8 Blessings, 4 Penalties), and King Skills (*Bumper Harvest*, *Red Envelope*).
+- **Cross-Kingdom Viewing & Kingdom Wars**:
+  - Users **cannot** create new castles or found new kingdoms in the UI (`showKingdomsAndCastlesSheet` in `hud_status_panels.dart`).
+  - Tapping **Enter** on another kingdom (`#1306 · Iron Crown`, `#1307 · Dragonspire`) switches the World Map to view that kingdom's defending castles/Lords (`King_Thorne`, `Duke_Vane`, `Lady_Brienne`, `DragonLord_Kael`, `PyreKnight`), shows a `Viewing K#1306 · Iron Crown` banner with **Start War** and **Home #1305** buttons, and allows scouting/attacking foreign castles for KvK points and loot.
+- **Additional Systems**: Dragon Campaign, 5 Civilizations (`Dragon-born`, `Viking`, `Yamato`, `Huaxia`, `Arabia`), Dragons & Heroes (`Scartha`, `Kraken`, `Yukine`, `Kylin`, `Shadow`).
+
+### D. Real-Time LAN / WebSocket Multiplayer
+- **Server**: `multiplayer/server.mjs` (zero-dependency Node.js RFC 6455 WebSocket + HTTP `/health` & `/state` on port `9944`, persisting to `multiplayer/state.json`, which is untracked in git).
+- **Client**: `app/lib/data/hud/multiplayer_client/multiplayer_client.dart` wired into `KingdomController.attachPersistencePath` when `--dart-define=MULTIPLAYER_URL=ws://<LAN_IP>:9944` is passed (empty in unit tests so tests never open sockets).
+- **Synced State**:
+  - Unique per-device `playerId`, unique default Lord name (`Lord_XXXX`), editable Lord name (`Lords -> Rename`), and server-assigned non-overlapping coordinates.
+  - Other players' castles & nameplates rendered live on the World Map (`[COK] Lord_XXXX · Lv.30`).
+  - Live **Lords (N)** sheet (`showMultiplayerLordsSheet`) to view online players, **Rename**, **Scout**, or **Attack**.
+  - Real-time PvP march lines visible on both attacker & defender screens, server-side battle/scout resolution delivering reports to `mails` on both devices, shared Throne King/appointments, and live Kingdom/Alliance chat.
 
 ---
 
-## 4. Build, Test, Sign & Deploy Commands (Windows)
-
-Use the local SDK toolchain in `C:\opencok-sdk`:
+## 3. Standard Build, Test, Sign & Deploy Commands
 
 ```powershell
 $env:JAVA_HOME = "C:\opencok-sdk\jdk-21.0.13+9"
 $env:ANDROID_HOME = "C:\opencok-sdk\android"
 $env:Path = "C:\opencok-sdk\flutter\bin;C:\opencok-sdk\jdk-21.0.13+9\bin;$env:Path"
+
+# 1. Start multiplayer server (keep running in background)
+node "C:\UNLOCKTOOL OFFLINE\opencok\multiplayer\server.mjs"
+
+# 2. Run verified unit/widget tests
 Set-Location "C:\UNLOCKTOOL OFFLINE\opencok\app"
-```
+flutter test test/world_map_viewport_test.dart test/city_layout_validation_test.dart test/kingdom_controller_test.dart test/hud_preview_screen_test.dart lib/ui/training/screens/training_screen/training_screen_test.dart lib/ui/castle/widgets/castle_viewport/castle_viewport_test.dart lib/ui/profile/screens/player_profile_screen/player_profile_screen_test.dart
 
-### Analyze & Run Tests
-```powershell
-flutter analyze
-flutter test test/ lib/
-```
+# 3. Build dual-ABI APK (32-bit + 64-bit) with multiplayer & rooted-test flags
+flutter build apk --release --target-platform android-arm,android-arm64 --dart-define=ALLOW_ROOTED=true --dart-define=MULTIPLAYER_URL=ws://192.168.100.49:9944 --android-skip-build-dependency-validation
 
-### Build Release ARM64 APK
-Note: `--android-skip-build-dependency-validation` is required because `app/android` uses AGP 9.1.0 with Flutter 3.50.1:
-```powershell
-flutter build apk --release --target-platform android-arm64 --android-skip-build-dependency-validation
-```
-
-### Sign, Install & Launch on Connected Android Device
-```powershell
+# 4. Zipalign, sign, and install to both phones
 $bt = "C:\opencok-sdk\android\build-tools\36.0.0"
 $adb = "C:\opencok-sdk\android\platform-tools\adb.exe"
-$inApk = "build\app\outputs\flutter-apk\app-release.apk"
-$alignedApk = "build\app\outputs\flutter-apk\app-release-aligned.apk"
-$signedApk = "build\app\outputs\flutter-apk\app-release-signed.apk"
-
-& "$bt\zipalign.exe" -f -p 4 $inApk $alignedApk
-& "$bt\apksigner.bat" sign --ks "$env:USERPROFILE\.android\debug.keystore" --ks-pass pass:android --key-pass pass:android --out $signedApk $alignedApk
-& $adb install -r $signedApk
-& $adb shell monkey -p org.opencok.opencok -c android.intent.category.LAUNCHER 1
+& "$bt\zipalign.exe" -f -p 4 build\app\outputs\flutter-apk\app-release.apk build\app\outputs\flutter-apk\app-release-aligned.apk
+& "$bt\apksigner.bat" sign --ks "$env:USERPROFILE\.android\debug.keystore" --ks-pass pass:android --key-pass pass:android --out build\app\outputs\flutter-apk\app-release-signed.apk build\app\outputs\flutter-apk\app-release-aligned.apk
+& $adb -s 192.168.100.59:5555 install -r build\app\outputs\flutter-apk\app-release-signed.apk
+& $adb -s R58Y60LD6PM install -r build\app\outputs\flutter-apk\app-release-signed.apk
 ```
 
 ---
 
-## 5. Notes for Future AI Agents
+## 4. Recommended Next Steps for the Next Agent
 
-1. **Do not** replace `HudPreviewScreen`, `GameHud`, `CastleScreen`, or `PlayerProfileScreen` with custom placeholder screens—keep the authentic Clash of Kings assets and layouts.
-2. **Avoid `pumpAndSettle()`** in widget tests that mount `HudPreviewScreen` or `CastleScreen` because `GoldGlint`, `CastleAmbiencePainter`, and `CastleWaterPainter` run continuous animations; use `await tester.pump(); await tester.pump(const Duration(milliseconds: 500));`.
-3. **Preserve `PlayerProfileScreen(data: referenceHudData)`** default constructor compatibility so responsive layout tests (`player_profile_screen_test.dart`) continue to work standalone.
-4. **When wiring real backend RPCs** (e.g., via `GameConnection` / `GATEWAY_URL` in `app/.env`), hook them into `KingdomController` methods so UI widgets remain decoupled from transport details.
+1. **Public / Cloud Multiplayer Hosting**: Move `multiplayer/server.mjs` (or integrate its PvP/Throne/Chat protocol into `gameserver/` + `apps/realm/`) behind a public `wss://` domain so players outside the local `192.168.100.x` Wi-Fi can play together without `--dart-define=MULTIPLAYER_URL`.
+2. **Cross-Kingdom Real-Time Player Migration / KvK Sync**: Sync `startKingdomWar` / foreign kingdom throne captures in `multiplayer/server.mjs` so multiple real players invading `#1306` / `#1307` see each other's KvK rallies and shared KvK scoreboards.
+3. **Production Release Build**: Before shipping to end users, build **without** `--dart-define=ALLOW_ROOTED=true` and sign with a release keystore instead of `debug.keystore`.
+4. **Testing Note**: Never use `pumpAndSettle()` in widget tests mounting `HudPreviewScreen` or `CastleScreen` (continuous animations); use `pump()` + `pump(Duration(milliseconds: 500))`. Do not commit `new app/` (`.apks` binary) or `multiplayer/state.json`.
