@@ -44,8 +44,8 @@ void main() {
           : find.bySemanticsLabel('Configurações');
       await tester.ensureVisible(settings);
       await tester.tap(settings);
-      await tester.pump();
-      expect(find.text('Configurações · em breve'), findsOneWidget);
+      await tester.pumpAndSettle();
+      expect(find.text('Audio & Kingdom Client Preferences'), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
   }

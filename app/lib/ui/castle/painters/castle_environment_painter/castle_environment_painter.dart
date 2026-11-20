@@ -113,8 +113,9 @@ class CastleEnvironmentPainter extends CustomPainter {
       _image(canvas, 'autumn_tree.png', treeBounds);
     }
 
-    for (final building in CastleBuildings.military) {
-      if (building.bounds.overlaps(visible)) {
+    for (final building in CastleBuildings.all) {
+      if (building.bounds.overlaps(visible) &&
+          environment.images.containsKey(building.asset)) {
         _image(canvas, building.asset, building.bounds);
       }
     }

@@ -8,8 +8,9 @@ Widget profileAddButton(
   BuildContext context,
   double x,
   double y,
-  String label,
-) => Positioned(
+  String label, {
+  VoidCallback? onTap,
+}) => Positioned(
   left: x,
   top: y,
   width: 44,
@@ -18,7 +19,7 @@ Widget profileAddButton(
     button: true,
     label: context.l10n.addResource(label),
     child: GestureDetector(
-      onTap: () => showProfilePreview(context, label),
+      onTap: onTap ?? () => showProfilePreview(context, label),
       child: Stack(
         alignment: Alignment.center,
         children: [

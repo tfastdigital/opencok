@@ -30,6 +30,25 @@ class WorldMapLoader {
           codec.dispose();
         }
       }
+      const extraCastleAssets = <int, String>{
+        1102: 'assets/world_map/buildings/castle/player_castle_level_2.png',
+        1103: 'assets/world_map/buildings/castle/player_castle_level_3.png',
+        1104: 'assets/world_map/buildings/castle/player_castle_level_4.png',
+        1105: 'assets/world_map/buildings/castle/player_castle_level_5.png',
+        1106: 'assets/castle/buildings/castle.png',
+      };
+      for (final entry in extraCastleAssets.entries) {
+        if (images.containsKey(entry.key)) continue;
+        final bytes = await assetsBundle.load(entry.value);
+        final codec = await ui.instantiateImageCodec(
+          bytes.buffer.asUint8List(bytes.offsetInBytes, bytes.lengthInBytes),
+        );
+        try {
+          images[entry.key] = (await codec.getNextFrame()).image;
+        } finally {
+          codec.dispose();
+        }
+      }
       final layers = <Map<int, int>>[];
       for (final layer in data['layers'] as List) {
         final cells = <int, int>{};

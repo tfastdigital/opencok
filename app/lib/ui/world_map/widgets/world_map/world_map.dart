@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:opencok/core/network/game_connection_scope/game_connection_scope.dart';
+import 'package:opencok/data/hud/kingdom_controller/kingdom_controller.dart';
 import 'package:opencok/data/world_map/world_map_loader/world_map_loader.dart';
 import 'package:opencok/domain/world_map/world_map_scene/world_map_scene.dart';
 import 'package:opencok/l10n/localization_context.dart';
@@ -8,9 +9,16 @@ import 'package:opencok/ui/errors/game_error_panel/game_error_panel.dart';
 import 'package:opencok/ui/world_map/widgets/world_map_viewport/world_map_viewport.dart';
 
 class WorldMap extends StatefulWidget {
-  const WorldMap({super.key, this.loadScene = WorldMapLoader.load});
+  const WorldMap({
+    super.key,
+    this.loadScene = WorldMapLoader.load,
+    this.controller,
+    this.onEnterCity,
+  });
 
   final Future<WorldMapScene> Function() loadScene;
+  final KingdomController? controller;
+  final VoidCallback? onEnterCity;
 
   @override
   State<WorldMap> createState() => _WorldMapState();
@@ -64,6 +72,8 @@ class _WorldMapState extends State<WorldMap> {
         return WorldMapViewport(
           scene: snapshot.requireData,
           connection: GameConnectionScope.maybeOf(context),
+          controller: widget.controller,
+          onEnterCity: widget.onEnterCity,
         );
       },
     ),

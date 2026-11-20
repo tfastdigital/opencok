@@ -2,14 +2,29 @@ package org.opencok.opencok
 
 import android.graphics.Color
 import android.os.Bundle
+import android.os.Debug
 import android.view.Gravity
 import android.widget.FrameLayout
 import android.widget.ImageView
 import io.flutter.embedding.android.FlutterActivity
+import io.flutter.embedding.engine.FlutterEngine
+import io.flutter.plugin.common.MethodChannel
 import kotlin.math.min
 
 class MainActivity : FlutterActivity() {
     private var launchOverlay: FrameLayout? = null
+
+    override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
+        super.configureFlutterEngine(flutterEngine)
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "org.opencok/android_security")
+            .setMethodCallHandler { call, result ->
+                if (call.method == "isDebuggerAttached") {
+                    result.success(Debug.isDebuggerConnected() || Debug.waitingForDebugger())
+                } else {
+                    result.notImplemented()
+                }
+            }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

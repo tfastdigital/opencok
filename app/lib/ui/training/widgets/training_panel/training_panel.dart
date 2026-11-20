@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:opencok/data/hud/kingdom_controller/kingdom_controller.dart';
 import 'package:opencok/domain/castle/castle_building/castle_building.dart';
 import 'package:opencok/domain/training/training_culture/training_culture.dart';
 import 'package:opencok/domain/training/training_unit/training_unit.dart';
@@ -23,6 +24,7 @@ class TrainingPanel extends StatelessWidget {
     required this.capacity,
     required this.building,
     required this.onInfo,
+    this.controller,
   });
   final TrainingUnit selected;
   final int count;
@@ -32,6 +34,7 @@ class TrainingPanel extends StatelessWidget {
   final int capacity;
   final CastleBuilding building;
   final void Function(String, String) onInfo;
+  final KingdomController? controller;
   @override
   Widget build(BuildContext context) => Stack(
     children: [
@@ -109,7 +112,12 @@ class TrainingPanel extends StatelessWidget {
         quantity: quantity,
         onCountChanged: onCountChanged,
       ),
-      TrainingActions(selected: selected, count: count, onInfo: onInfo),
+      TrainingActions(
+        selected: selected,
+        count: count,
+        onInfo: onInfo,
+        controller: controller,
+      ),
     ],
   );
 }

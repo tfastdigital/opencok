@@ -10,3 +10,4 @@ OpenCoK is a self-hosted game platform. Use this index to load only the guidance
 | [GLOSSARY](.agents/GLOSSARY.md) | Vocabulary, names, contracts and code presentation.         |
 | [RULES](.agents/RULES.md)       | Repository rules, protection, destinations and delivery.    |
 | [TESTING](.agents/TESTING.md)   | Test structure and execution guidance.                      |
+| [HANDOFF](docs/AGENT_HANDOFF.md)| `org.opencok.opencok` architecture, finished preview UI, build & ADB deploy. |

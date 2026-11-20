@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:opencok/data/castle/castle_environment_loader/castle_environment_loader.dart';
+import 'package:opencok/data/hud/kingdom_controller/kingdom_controller.dart';
+import 'package:opencok/domain/castle/castle_building/castle_building.dart';
 import 'package:opencok/domain/castle/castle_environment/castle_environment.dart';
 import 'package:opencok/l10n/localization_context.dart';
 import 'package:opencok/ui/castle/widgets/castle_viewport/castle_viewport.dart';
@@ -10,9 +12,15 @@ class CastleScreen extends StatefulWidget {
   const CastleScreen({
     super.key,
     this.loadEnvironment = CastleEnvironmentLoader.load,
+    this.showTrainingActions = true,
+    this.onCityBuildingAction,
+    this.controller,
   });
 
   final Future<CastleEnvironment> Function() loadEnvironment;
+  final bool showTrainingActions;
+  final ValueChanged<CastleBuilding>? onCityBuildingAction;
+  final KingdomController? controller;
 
   @override
   State<CastleScreen> createState() => _CastleScreenState();
@@ -68,7 +76,12 @@ class _CastleScreenState extends State<CastleScreen> {
           if (!snapshot.hasData) {
             return Center(child: CircularProgressIndicator());
           }
-          return CastleViewport(environment: snapshot.requireData);
+          return CastleViewport(
+            environment: snapshot.requireData,
+            showTrainingActions: widget.showTrainingActions,
+            onCityBuildingAction: widget.onCityBuildingAction,
+            controller: widget.controller,
+          );
         },
       ),
     ),

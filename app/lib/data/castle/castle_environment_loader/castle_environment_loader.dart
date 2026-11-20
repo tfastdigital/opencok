@@ -28,9 +28,9 @@ class CastleEnvironmentLoader {
           codec.dispose();
         }
       }
-      for (final building in CastleBuildings.military) {
+      for (final building in CastleBuildings.all) {
         final data = await (bundle ?? rootBundle).load(
-          '${CastleBuildings.assetRoot}${building.asset}',
+          CastleBuildings.fullAssetPath(building.asset),
         );
         final codec = await ui.instantiateImageCodec(
           data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes),

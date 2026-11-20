@@ -1,21 +1,37 @@
+import 'dart:async';
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:opencok/core/platform/platform_ui/platform_ui.dart';
 import 'package:opencok/data/castle/castle_buildings/castle_buildings.dart';
+import 'package:opencok/data/hud/kingdom_controller/kingdom_controller.dart';
 import 'package:opencok/domain/castle/castle_building/castle_building.dart';
 import 'package:opencok/domain/castle/castle_environment/castle_environment.dart';
 import 'package:opencok/l10n/localization_context.dart';
 import 'package:opencok/ui/castle/painters/castle_ambience_painter/castle_ambience_painter.dart';
 import 'package:opencok/ui/castle/painters/castle_environment_painter/castle_environment_painter.dart';
 import 'package:opencok/ui/castle/painters/castle_water_painter/castle_water_painter.dart';
+import 'package:opencok/ui/castle/widgets/building_system_sheets/building_system_sheets.dart';
 import 'package:opencok/ui/castle/widgets/castle_building_menu/castle_building_menu.dart';
+import 'package:opencok/ui/castle/widgets/city_layout_debug_overlay/city_layout_debug_overlay.dart';
+import 'package:opencok/ui/hud/widgets/hud_panels/hud_status_panels.dart';
+import 'package:opencok/ui/shared/medieval_panel/medieval_panel.dart';
 import 'package:opencok/ui/training/screens/training_screen/training_screen.dart';
 
 class CastleViewport extends StatefulWidget {
-  const CastleViewport({super.key, required this.environment});
+  const CastleViewport({
+    super.key,
+    required this.environment,
+    this.showTrainingActions = true,
+    this.onCityBuildingAction,
+    this.controller,
+  });
 
   final CastleEnvironment environment;
+  final bool showTrainingActions;
+  final ValueChanged<CastleBuilding>? onCityBuildingAction;
+  final KingdomController? controller;
 
   @override
   State<CastleViewport> createState() => _CastleViewportState();
@@ -33,6 +49,7 @@ class _CastleViewportState extends State<CastleViewport>
   );
   Matrix4Tween? _cameraTween;
   CastleBuilding? _selected;
+  bool _showLayoutDebug = false;
 
   @override
   void initState() {
@@ -81,14 +98,25 @@ class _CastleViewportState extends State<CastleViewport>
 
   void _select(Offset position, Size viewport, double minimumScale) {
     CastleBuilding? selected;
-    for (final building in CastleBuildings.military.reversed) {
+    for (final building in CastleBuildings.all.reversed) {
       if (building.bounds.contains(position)) {
         selected = building;
         break;
       }
     }
     setState(() => _selected = selected);
-    if (selected == null) return;
+    if (selected == null) {
+      final ctrl = widget.controller;
+      if (ctrl != null) {
+        for (var i = 0; i < CastleBuildings.emptyResourcePlots.length; i++) {
+          if (CastleBuildings.emptyResourcePlots[i].contains(position)) {
+            unawaited(_openResourcePlotSheet(ctrl, i));
+            return;
+          }
+        }
+      }
+      return;
+    }
     final scale = math
         .max(
           _camera.value.getMaxScaleOnAxis(),
@@ -115,6 +143,128 @@ class _CastleViewportState extends State<CastleViewport>
       _cameraMotion.forward(from: 0);
     }
   }
+
+  Future<void> _openResourcePlotSheet(
+    KingdomController controller,
+    int plotIndex,
+  ) => showMedievalSheet<void>(
+    context,
+    title: 'Resource Plot #${plotIndex + 1}',
+    subtitle: 'Build or upgrade Farms, Sawmills, Iron & Mithril Mines',
+    bodyBuilder: (sheetContext) => ListenableBuilder(
+      listenable: controller,
+      builder: (context, _) {
+        final builtType = controller.builtResourcePlots[plotIndex];
+        if (builtType != null) {
+          final lv = controller.builtResourcePlotLevels[plotIndex] ?? 1;
+          final cost = (lv + 1) * 8000;
+          return Padding(
+            padding: const EdgeInsets.all(14),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  '$builtType · Lv.$lv',
+                  style: const TextStyle(
+                    color: MedievalPanelColors.goldBright,
+                    fontFamily: 'serif',
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                medievalActionButton(
+                  label: 'Collect (+15,000)',
+                  onPressed: () {
+                    switch (builtType) {
+                      case 'Farm':
+                        controller.addResources(food: 15000);
+                      case 'Sawmill':
+                        controller.addResources(wood: 15000);
+                      case 'Iron Mine':
+                        controller.addResources(iron: 15000);
+                      case 'Mithril Mine':
+                        controller.addResources(mithril: 15000);
+                    }
+                    Navigator.of(sheetContext).pop();
+                  },
+                ),
+                const SizedBox(height: 8),
+                medievalActionButton(
+                  label:
+                      'Upgrade Lv.${lv + 1} (${KingdomController.formatCompact(cost)} W/F)',
+                  onPressed: controller.wood >= cost && controller.food >= cost
+                      ? () => controller.upgradeResourcePlot(plotIndex)
+                      : null,
+                ),
+              ],
+            ),
+          );
+        }
+        return ListView(
+          shrinkWrap: true,
+          padding: const EdgeInsets.all(14),
+          children: [
+            for (final (type, asset, desc) in const [
+              ('Farm', 'assets/world_map/buildings/resources/farm.png', 'Produces Food (+10K W/F)'),
+              ('Sawmill', 'assets/world_map/buildings/resources/sawmill.png', 'Produces Wood (+10K W/F)'),
+              ('Iron Mine', 'assets/world_map/buildings/resources/iron_mine.png', 'Produces Iron (+10K W/F)'),
+              ('Mithril Mine', 'assets/world_map/buildings/resources/mithril_mine.png', 'Produces Mithril (+10K W/F)'),
+            ])
+              Container(
+                margin: const EdgeInsets.only(bottom: 10),
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: MedievalPanelColors.card,
+                  border: Border.all(color: MedievalPanelColors.goldBorder),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Row(
+                  children: [
+                    Image.asset(asset, width: 44, height: 44),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            type,
+                            style: const TextStyle(
+                              color: MedievalPanelColors.goldBright,
+                              fontFamily: 'serif',
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          Text(
+                            desc,
+                            style: const TextStyle(
+                              color: MedievalPanelColors.mutedText,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    medievalActionButton(
+                      compact: true,
+                      label: 'Build',
+                      onPressed:
+                          controller.wood >= 10000 && controller.food >= 10000
+                          ? () => controller.buildOnResourcePlot(
+                              plotIndex,
+                              type,
+                            )
+                          : null,
+                    ),
+                  ],
+                ),
+              ),
+          ],
+        );
+      },
+    ),
+  );
 
   final _camera = TransformationController();
   Size? _viewport;
@@ -229,6 +379,189 @@ class _CastleViewportState extends State<CastleViewport>
               ),
             ),
           ),
+          if (widget.controller case final controller?)
+            Positioned.fill(
+              child: AnimatedBuilder(
+                animation: Listenable.merge([_camera, controller]),
+                builder: (context, _) => IgnorePointer(
+                  child: Stack(
+                    children: [
+                      for (final building in CastleBuildings.all)
+                        () {
+                          final point = MatrixUtils.transformPoint(
+                            _camera.value,
+                            Offset(
+                              building.bounds.center.dx,
+                              building.bounds.top + 36,
+                            ),
+                          );
+                          if (point.dx < -30 ||
+                              point.dx > viewport.width + 30 ||
+                              point.dy < 70 ||
+                              point.dy > viewport.height - 130) {
+                            return const SizedBox.shrink();
+                          }
+                        final lv = controller.buildingLevel(building.nameKey);
+                        return Positioned(
+                          left: point.dx - 16,
+                          top: point.dy - 12,
+                          child: Container(
+                            width: 32,
+                            height: 22,
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(
+                              gradient: const LinearGradient(
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                                colors: [Color(0xee33362c), Color(0xee161d20)],
+                              ),
+                              border: Border.all(
+                                color: const Color(0xffc7a66a),
+                                width: 1.2,
+                              ),
+                              borderRadius: BorderRadius.circular(4),
+                              boxShadow: const [
+                                BoxShadow(
+                                  color: Colors.black87,
+                                  blurRadius: 4,
+                                  offset: Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: Text(
+                              '$lv',
+                              style: const TextStyle(
+                                color: Color(0xffffe7ae),
+                                fontFamily: 'serif',
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                height: 1,
+                              ),
+                            ),
+                          ),
+                        );
+                      }(),
+                      for (var i = 0;
+                          i < CastleBuildings.emptyResourcePlots.length;
+                          i++)
+                        () {
+                          final rect = CastleBuildings.emptyResourcePlots[i];
+                          final topLeft = MatrixUtils.transformPoint(
+                            _camera.value,
+                            rect.topLeft,
+                          );
+                          final bottomRight = MatrixUtils.transformPoint(
+                            _camera.value,
+                            rect.bottomRight,
+                          );
+                          if (bottomRight.dx < -30 ||
+                              topLeft.dx > viewport.width + 30 ||
+                              bottomRight.dy < 70 ||
+                              topLeft.dy > viewport.height - 130) {
+                            return const SizedBox.shrink();
+                          }
+                          final builtType = controller.builtResourcePlots[i];
+                          final w = (bottomRight.dx - topLeft.dx).abs();
+                          final h = (bottomRight.dy - topLeft.dy).abs();
+                          final asset = switch (builtType) {
+                            'Farm' =>
+                              'assets/world_map/buildings/resources/farm.png',
+                            'Sawmill' =>
+                              'assets/world_map/buildings/resources/sawmill.png',
+                            'Iron Mine' =>
+                              'assets/world_map/buildings/resources/iron_mine.png',
+                            'Mithril Mine' =>
+                              'assets/world_map/buildings/resources/mithril_mine.png',
+                            _ => null,
+                          };
+                          return Positioned(
+                            left: topLeft.dx,
+                            top: topLeft.dy,
+                            width: w,
+                            height: h,
+                            child: asset != null
+                                ? Stack(
+                                    clipBehavior: Clip.none,
+                                    children: [
+                                      Image.asset(asset, fit: BoxFit.contain),
+                                      Positioned(
+                                        left: w / 2 - 14,
+                                        top: -10,
+                                        child: Container(
+                                          width: 28,
+                                          height: 20,
+                                          alignment: Alignment.center,
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xee161d20),
+                                            border: Border.all(
+                                              color: const Color(0xffc7a66a),
+                                            ),
+                                            borderRadius: BorderRadius.circular(4),
+                                          ),
+                                          child: Text(
+                                            '${controller.builtResourcePlotLevels[i] ?? 1}',
+                                            style: const TextStyle(
+                                              color: Color(0xffffe7ae),
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  )
+                                : Center(
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 4,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xcc1b2732),
+                                        border: Border.all(
+                                          color: const Color(0xffa68b53),
+                                        ),
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: const Text(
+                                        '+ Build',
+                                        style: TextStyle(
+                                          color: Color(0xffffe7ae),
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                          );
+                        }(),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          if (!kReleaseMode && _showLayoutDebug)
+            Positioned.fill(
+              child: CityLayoutDebugOverlay(
+                camera: _camera,
+                viewport: viewport,
+              ),
+            ),
+          if (!kReleaseMode)
+            Positioned(
+              left: 10,
+              top: 124,
+              child: FloatingActionButton.small(
+                heroTag: 'city-layout-debug-toggle',
+                backgroundColor: _showLayoutDebug
+                    ? const Color(0xff596944)
+                    : const Color(0xcc1b2732),
+                foregroundColor: const Color(0xffffe7ae),
+                onPressed: () =>
+                    setState(() => _showLayoutDebug = !_showLayoutDebug),
+                child: const Icon(Icons.grid_on, size: 18),
+              ),
+            ),
           if (_selected case final building?)
             AnimatedBuilder(
               animation: _camera,
@@ -251,12 +584,80 @@ class _CastleViewportState extends State<CastleViewport>
                   child: CastleBuildingMenu(
                     key: ValueKey(building.asset),
                     building: building,
+                    level: widget.controller?.buildingLevel(building.nameKey),
+                    upgradeLabel: widget.controller == null
+                        ? null
+                        : () {
+                            final (w, f) = widget.controller!.upgradeCost(
+                              building.nameKey,
+                            );
+                            return 'Upgrade (${KingdomController.formatCompact(w)}W · ${KingdomController.formatCompact(f)}F)';
+                          }(),
+                    onUpgrade: widget.controller == null
+                        ? null
+                        : () {
+                            final ctrl = widget.controller!;
+                            setState(() => _selected = null);
+                            unawaited(
+                              showUniversalUpgradeSheet(
+                                context,
+                                ctrl,
+                                building,
+                              ),
+                            );
+                          },
+                    onDetails: widget.controller == null
+                        ? null
+                        : () {
+                            final ctrl = widget.controller!;
+                            setState(() => _selected = null);
+                            unawaited(
+                              showBuildingDetailsSheet(
+                                context,
+                                ctrl,
+                                building,
+                              ),
+                            );
+                          },
+                    onSkins:
+                        widget.controller != null &&
+                            building.nameKey == 'buildingCastle'
+                        ? () {
+                            final ctrl = widget.controller!;
+                            setState(() => _selected = null);
+                            unawaited(showCastleSkinsSheet(context, ctrl));
+                          }
+                        : null,
+                    onBuildCity:
+                        widget.controller != null &&
+                            building.nameKey == 'buildingCastle'
+                        ? () {
+                            setState(() => _selected = null);
+                            unawaited(
+                              showCityBuildingsSheet(
+                                context,
+                                widget.controller!,
+                              ),
+                            );
+                          }
+                        : null,
                     onClose: () => setState(() => _selected = null),
-                    onTrain: () => Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        builder: (_) => TrainingScreen(building: building),
-                      ),
-                    ),
+                    actionLabel: CastleBuildings.military.contains(building)
+                        ? null
+                        : 'Inspect',
+                    onTrain: CastleBuildings.military.contains(building)
+                        ? () => Navigator.of(context).push(
+                            MaterialPageRoute<void>(
+                              builder: (_) => TrainingScreen(
+                                building: building,
+                                controller: widget.controller,
+                              ),
+                            ),
+                          )
+                        : () {
+                            setState(() => _selected = null);
+                            widget.onCityBuildingAction?.call(building);
+                          },
                   ),
                 );
               },

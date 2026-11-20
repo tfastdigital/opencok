@@ -8,8 +8,9 @@ Widget profileRoundAction(
   String label,
   double x,
   double y,
-  double size,
-) => Positioned(
+  double size, {
+  VoidCallback? onTap,
+}) => Positioned(
   left: x,
   top: y,
   width: size,
@@ -18,7 +19,7 @@ Widget profileRoundAction(
     button: true,
     label: label,
     child: GestureDetector(
-      onTap: () => showProfilePreview(context, label),
+      onTap: onTap ?? () => showProfilePreview(context, label),
       child: Stack(
         children: [
           Positioned.fill(

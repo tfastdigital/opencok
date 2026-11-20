@@ -1,18 +1,40 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:opencok/data/hud/kingdom_controller/kingdom_controller.dart';
 import 'package:opencok/domain/hud/hud_data/hud_data.dart';
 import 'package:opencok/l10n/localization_context.dart';
-import 'package:opencok/ui/profile/actions/show_profile_preview/show_profile_preview.dart';
 import 'package:opencok/ui/profile/widgets/profile_image/profile_image.dart';
+import 'package:opencok/ui/profile/widgets/profile_modals/profile_modals.dart';
 
 class DesktopPlayerProfile extends StatelessWidget {
   const DesktopPlayerProfile({
     super.key,
     required this.data,
     required this.playerName,
+    required this.controller,
   });
 
   final HudData data;
   final String playerName;
+  final KingdomController controller;
+
+  void _onFooterAction(BuildContext context, String icon) {
+    switch (icon) {
+      case 'ranking':
+        unawaited(showRankingSheet(context, controller));
+      case 'achievements':
+        unawaited(showAchievementsSheet(context, controller));
+      case 'scroll':
+        unawaited(showLordInformationSheet(context, controller));
+      case 'reset':
+        unawaited(showResetSkillsDialog(context, controller));
+      case 'skills':
+        unawaited(showSkillsSheet(context, controller));
+      case 'settings':
+        unawaited(showSettingsSheet(context, controller));
+    }
+  }
 
   @override
   Widget build(BuildContext context) => DecoratedBox(
@@ -58,7 +80,7 @@ class DesktopPlayerProfile extends StatelessWidget {
               IconButton(
                 tooltip: context.l10n.rename,
                 onPressed: () =>
-                    showProfilePreview(context, context.l10n.rename),
+                    unawaited(showRenameLordDialog(context, controller)),
                 icon: Image.asset('assets/ui/profile/rename.png', width: 28),
               ),
             ],
@@ -89,6 +111,7 @@ class DesktopPlayerProfile extends StatelessWidget {
                                   data.experience,
                                   '${(data.experience * 100).round()}%',
                                   const Color(0xff20d5f5),
+                                  () => controller.addExperience(0.10),
                                 ),
                                 const SizedBox(height: 28),
                                 _stat(
@@ -98,6 +121,7 @@ class DesktopPlayerProfile extends StatelessWidget {
                                   data.energy,
                                   '${(data.energy * 120).round()}/120',
                                   const Color(0xff68d847),
+                                  () => controller.addEnergy(0.25),
                                 ),
                               ],
                             ),
@@ -122,7 +146,7 @@ class DesktopPlayerProfile extends StatelessWidget {
                                 ])
                                   OutlinedButton(
                                     onPressed: () =>
-                                        showProfilePreview(context, label),
+                                        _onFooterAction(context, icon),
                                     style: OutlinedButton.styleFrom(
                                       foregroundColor: const Color(0xffead6ac),
                                       side: const BorderSide(
@@ -198,11 +222,20 @@ class DesktopPlayerProfile extends StatelessWidget {
                   top: 54.0 + row * 128.6,
                   width: 105,
                   height: 105,
-                  child: Semantics(
-                    label: context.l10n.emptyEquipmentSlot(
-                      column * 4 + row + 1,
+                  child: GestureDetector(
+                    onTap: () => unawaited(
+                      showEquipmentSlotSheet(
+                        context,
+                        controller,
+                        column * 4 + row,
+                      ),
                     ),
-                    child: Image.asset('assets/ui/profile/empty_slot.png'),
+                    child: Semantics(
+                      label: context.l10n.emptyEquipmentSlot(
+                        column * 4 + row + 1,
+                      ),
+                      child: Image.asset('assets/ui/profile/empty_slot.png'),
+                    ),
                   ),
                 ),
           ],
@@ -218,6 +251,7 @@ class DesktopPlayerProfile extends StatelessWidget {
     double value,
     String amount,
     Color color,
+    VoidCallback onAdd,
   ) => Row(
     children: [
       Image.asset(
@@ -253,7 +287,7 @@ class DesktopPlayerProfile extends StatelessWidget {
       const SizedBox(width: 12),
       IconButton(
         tooltip: context.l10n.addResource(label),
-        onPressed: () => showProfilePreview(context, label),
+        onPressed: onAdd,
         icon: Image.asset('assets/ui/profile/plus.png', width: 30),
       ),
     ],

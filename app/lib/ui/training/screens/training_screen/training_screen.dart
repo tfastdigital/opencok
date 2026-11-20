@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:opencok/data/hud/kingdom_controller/kingdom_controller.dart';
 import 'package:opencok/data/training/training_catalog/training_catalog.dart';
 import 'package:opencok/domain/castle/castle_building/castle_building.dart';
 import 'package:opencok/domain/training/training_culture/training_culture.dart';
@@ -13,8 +14,9 @@ import 'package:opencok/ui/training/widgets/training_panel/training_panel.dart';
 import 'package:opencok/ui/training/widgets/training_unit_preview/training_unit_preview.dart';
 
 class TrainingScreen extends StatefulWidget {
-  const TrainingScreen({super.key, required this.building});
+  const TrainingScreen({super.key, required this.building, this.controller});
   final CastleBuilding building;
+  final KingdomController? controller;
 
   @override
   State<TrainingScreen> createState() => _TrainingScreenState();
@@ -167,6 +169,7 @@ class _TrainingScreenState extends State<TrainingScreen> {
       capacity: _previewCapacity,
       building: widget.building,
       onInfo: _showInfo,
+      controller: widget.controller,
     ),
   );
 }

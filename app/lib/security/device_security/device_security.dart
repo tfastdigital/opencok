@@ -5,11 +5,13 @@ import 'package:opencok/security/device_security_block/device_security_block.dar
 
 class DeviceSecurity {
   static const developmentExemption =
-      kDebugMode &&
-      String.fromEnvironment('APP_ENV', defaultValue: 'production') ==
-          'development';
+      (kDebugMode &&
+          String.fromEnvironment('APP_ENV', defaultValue: 'production') ==
+              'development') ||
+      bool.fromEnvironment('ALLOW_ROOTED', defaultValue: false);
 
   static const _mobile = MethodChannel('jailbreak_root_detection');
+  static const _android = MethodChannel('org.opencok/android_security');
   static const _desktop = MethodChannel('org.opencok/device_security');
 
   static Future<DeviceSecurityBlock?> check() async {
@@ -36,10 +38,11 @@ class DeviceSecurity {
         if (await _mobileFlag('isJailBroken')) {
           return DeviceSecurityBlock.compromised;
         }
-        if (await _mobileFlag('isDevMode')) {
-          return DeviceSecurityBlock.developerMode;
-        }
-        if (await _mobileFlag('isDebugged')) {
+        final attached = await _android.invokeMethod<bool>(
+          'isDebuggerAttached',
+        );
+        if (attached == null) throw StateError('Missing debugger check');
+        if (attached) {
           return DeviceSecurityBlock.debugger;
         }
         return null;

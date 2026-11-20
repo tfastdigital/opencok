@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:opencok/data/hud/kingdom_controller/kingdom_controller.dart';
 import 'package:opencok/domain/training/training_unit/training_unit.dart';
+import 'package:opencok/l10n/game_names.dart';
 import 'package:opencok/l10n/localization_context.dart';
 import 'package:opencok/ui/training/widgets/training_art/training_art.dart';
 import 'package:opencok/ui/training/widgets/training_position/training_position.dart';
@@ -11,10 +13,12 @@ class TrainingActions extends StatelessWidget {
     required this.selected,
     required this.count,
     required this.onInfo,
+    this.controller,
   });
   final TrainingUnit selected;
   final int count;
   final void Function(String, String) onInfo;
+  final KingdomController? controller;
   String _amount(int value) => value >= 1000000
       ? '${(value / 1000000).toStringAsFixed(1)}M'
       : value >= 1000
@@ -43,10 +47,39 @@ class TrainingActions extends StatelessWidget {
             label: label,
             excludeSemantics: true,
             child: GestureDetector(
-              onTap: () => onInfo(
-                context.l10n.trainingUnavailable,
-                context.l10n.trainingUnavailableDescription,
-              ),
+              onTap: () {
+                final ctrl = controller;
+                if (ctrl == null) {
+                  onInfo(
+                    context.l10n.trainingUnavailable,
+                    context.l10n.trainingUnavailableDescription,
+                  );
+                  return;
+                }
+                final isInstant = image == 'instant_train_button';
+                final goldCost = (selected.secondsPerUnit * count / 60).ceil();
+                final ok = ctrl.trainTroopsWithCost(
+                  count: count,
+                  woodCost: selected.woodCost * count,
+                  foodCost: selected.foodCost * count,
+                  ironCost: selected.ironCost * count,
+                  mithrilCost: selected.mithrilCost * count,
+                  goldCost: isInstant ? goldCost : 0,
+                );
+                if (!ok) {
+                  onInfo(
+                    'Insufficient Resources',
+                    isInstant
+                        ? 'You need $goldCost Gold to instant-train $count troops.'
+                        : 'Not enough Wood, Food, Iron, or Mithril to train $count troops.',
+                  );
+                  return;
+                }
+                onInfo(
+                  'Troops Trained!',
+                  'Trained $count ${context.l10n.gameName(selected.nameKey)} (+${KingdomController.formatWithCommas(count * 12)} Power).',
+                );
+              },
               child: Stack(
                 fit: StackFit.expand,
                 children: [
