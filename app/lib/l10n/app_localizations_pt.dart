@@ -1,9 +1,13 @@
+// ignore: unused_import
 import 'package:intl/intl.dart' as intl;
 
 import 'app_localizations.dart';
 
+// ignore_for_file: type=lint
+
+/// The translations for Portuguese (`pt`).
 class AppLocalizationsPt extends AppLocalizations {
-  AppLocalizationsPt([super.locale = 'pt']);
+  AppLocalizationsPt([String locale = 'pt']) : super(locale);
 
   @override
   String get close => 'Fechar';
@@ -34,6 +38,10 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get map => 'Mapa';
+
+  @override
+  String get mapInstructions =>
+      'Mapa. Arraste para explorar e use dois dedos para ampliar.';
 
   @override
   String get profile => 'Perfil';
@@ -240,13 +248,13 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String unitCount(int count) {
-    String temp0 = intl.Intl.pluralLogic(
+    String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
       other: '$count unidades',
       one: '1 unidade',
     );
-    return temp0;
+    return '$_temp0';
   }
 
   @override
@@ -557,14 +565,14 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String errorMessage(String error) {
-    String temp0 = intl.Intl.selectLogic(error, {
+    String _temp0 = intl.Intl.selectLogic(error, {
       'unexpected':
           'Ocorreu um erro inesperado. Feche esta mensagem e tente novamente.',
       'music': 'Não foi possível reproduzir a música do jogo.',
       'other':
           'Ocorreu um erro inesperado. Feche esta mensagem e tente novamente.',
     });
-    return temp0;
+    return '$_temp0';
   }
 
   @override

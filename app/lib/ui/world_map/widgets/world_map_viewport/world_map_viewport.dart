@@ -183,7 +183,7 @@ class _WorldMapViewportState extends State<WorldMapViewport> {
         _scheduleQuery();
       }
       final map = Semantics(
-        label: 'Mapa. Arraste para explorar e use dois dedos para ampliar.',
+        label: context.l10n.mapInstructions,
         child: RepaintBoundary(
           child: InteractiveViewer(
             transformationController: _camera,

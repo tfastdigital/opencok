@@ -13,5 +13,5 @@ Future<void> main() async {
     await SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
   }
   GameErrorHandlers.install();
-  runApp(const StartupArtwork(child: GameApp()));
+  runApp(const StartupArtwork(child: GameApp(locale: Locale('en'))));
 }

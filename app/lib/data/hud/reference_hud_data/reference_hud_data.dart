@@ -15,5 +15,5 @@ const referenceHudData = HudData(
   mailCount: 93,
   portrait: 'assets/ui/hud/profile/avatars/sword_knight.png',
   chatVip: 'SVIP 25',
-  chat: '(1305) ★JUϟ★: [Envelope Vermelho]Tes…',
+  chat: '(1305) ★JUϟ★: [Red Envelope]Tes…',
 );
