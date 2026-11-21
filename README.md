@@ -2,6 +2,16 @@
 
 OpenCoK is an independent, open-source strategy game project inspired by Clash of Kings. It includes a Flutter client, a Go WebSocket gateway, a Bun realm service, and shared game and persistence packages. Android is the current device test target. The project uses its own client.
 
+## Download the Android preview
+
+Download the [universal Android APK](https://github.com/tfastdigital/opencok/releases/download/managed-preview-2026-11-21/opencok-android-managed-preview-universal.apk) and the [companion local server](https://github.com/tfastdigital/opencok/releases/download/managed-preview-2026-11-21/opencok-local-preview-server.zip). The APK supports 32-bit and 64-bit ARM phones. This developer preview connects to a realm you run locally through USB. Follow `SETUP.txt` in the server archive. [Release notes and checksums](https://github.com/tfastdigital/opencok/releases/tag/managed-preview-2026-11-21)
+
+## Contribute
+
+1. [Browse open issues](https://github.com/tfastdigital/opencok/issues) for a bug or feature to work on. For a new issue, include what you expected, what happened, and how to reproduce it.
+2. [Fork the repository](https://github.com/tfastdigital/opencok/fork), clone your fork, and create a branch from `develop`. Use the toolchain and setup commands below.
+3. Read the [architecture notes](.github/ARCHITECTURE.md), [repository guide](AGENTS.md), and [code of conduct](.github/CODE_OF_CONDUCT.md). Work against disposable saves and run the checks that cover your change.
+4. Push your branch to your fork and open a pull request targeting `develop`. Use the [pull request template](.github/PULL_REQUEST_TEMPLATE.md). Include test results and screenshots for visible changes. Keep credentials, player saves, and generated APKs out of your commits.
 ## Set up the development environment
 
 Install the toolchains listed in [mise.toml](mise.toml). The default branch uses Bun for the TypeScript workspace, Go for the game gateway, and Flutter with the Android SDK and JDK 21 for Android development.
@@ -73,7 +83,7 @@ The [Docker Compose files](docker/) describe the service stack. Copy [the enviro
 
 ## Managed gameplay preview
 
-A separate managed multiplayer checkout is used to develop and test live player saves, construction and troop queues, AI Lords, alliance diplomacy, and single-realm conquest. These features and the Node scripts below are pending publication on `develop`. Use these steps in a checkout that includes the managed `multiplayer/` directory.
+A separate managed multiplayer checkout is used to develop and test live player saves, construction and troop queues, computer-controlled lords, alliance diplomacy, and single-realm conquest. These features and the Node scripts below are pending publication on `develop`. Use these steps in a checkout that includes the managed `multiplayer/` directory.
 
 1. Start `node multiplayer/server.mjs` with a dedicated `OPENCOK_STATE_FILE`. The default gameplay port is `9944`; `/health` reports availability. Keep state files and backups outside source control.
 2. Build the preview client with `--dart-define=MULTIPLAYER_URL=ws://127.0.0.1:9944`. For USB testing, run `adb -s DEVICE_SERIAL reverse tcp:9944 tcp:9944`. The managed gameplay socket and Go gateway are separate endpoints.
