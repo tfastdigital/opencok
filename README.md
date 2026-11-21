@@ -46,14 +46,14 @@ adb devices
 adb -s DEVICE_SERIAL reverse tcp:9933 tcp:9933
 ```
 
-From `app/`, build for both 32-bit ARM and 64-bit ARM phones:
+From `app/`, build and install a debug APK for both 32-bit ARM and 64-bit ARM phones. The debug manifest enables the local cleartext WebSocket connection.
 
 ```sh
-flutter build apk --release --target-platform android-arm,android-arm64 --dart-define=GATEWAY_URL=ws://127.0.0.1:9933/ws
-adb -s DEVICE_SERIAL install -r build/app/outputs/flutter-apk/app-release.apk
+flutter build apk --debug --target-platform android-arm,android-arm64 --dart-define=GATEWAY_URL=ws://127.0.0.1:9933/ws
+adb -s DEVICE_SERIAL install -r build/app/outputs/flutter-apk/app-debug.apk
 ```
 
-Use the same signing key as the installed app for an in-place update. For distributed builds, use your release signing configuration and the deployed `wss://` endpoint. Reapply USB forwarding if ADB restarts.
+Use the same signing key as the installed app for an in-place update. For distributed builds, replace `--debug` with `--release`, set `GATEWAY_URL` to the deployed `wss://` endpoint, and configure Android release signing before distributing the APK. If signing outside Gradle, run `zipalign` before `apksigner sign`, then run `apksigner verify` before installation. Reapply USB forwarding if ADB restarts.
 
 ## Run checks
 
